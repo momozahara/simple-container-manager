@@ -1,4 +1,5 @@
 const labelStatus = document.getElementById("status");
+const logsContainer = document.getElementById("logs-container");
 const textLogs = document.getElementById("logs");
 const buttonStart = document.getElementById("start");
 const buttonStop = document.getElementById("stop");
@@ -36,8 +37,8 @@ function getStatus() {
     });
 }
 
-function getLogs() {
-  fetch("/api/logs",
+async function getLogs() {
+  return fetch("/api/logs",
     { method: "GET" })
     .then((response) => {
       const _status = response.status;
@@ -74,11 +75,12 @@ function onStop() {
     });
 }
 
-function onLoad() {
+async function onLoad() {
   getStatus();
   interval = setInterval(getStatus, 6000);
-  getLogs();
+  await getLogs();
   intervalLogs = setInterval(getLogs, 10000);
+  logsContainer.scrollTo(0, logsContainer.scrollHeight);
 }
 
 document.onload += onLoad();

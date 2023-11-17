@@ -9,9 +9,13 @@
       margin: 1rem;
     }
 
-    #logs {
+    #logs-container {
       border: 1px black solid;
       padding: 1rem;
+      margin: 1rem 0;
+      max-height: 20rem;
+      overflow-y: scroll;
+      overflow-x: hidden;
     }
   </style>
 </head>
@@ -19,7 +23,9 @@
 <body>
   <div id="root">
     <p>Status: <span id="status">%</span></p>
-    <p id="logs"></p>
+    <div id="logs-container">
+      <p id="logs"></p>
+    </div>
     <button id="start" onclick="onStart()" disabled>Start</button>
     <button id="stop" onclick="onStop()" disabled>Stop</button>
   </div>
