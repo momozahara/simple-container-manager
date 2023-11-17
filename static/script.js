@@ -1,12 +1,13 @@
 const labelStatus = document.getElementById("status");
+const textLogs = document.getElementById("logs");
 const buttonStart = document.getElementById("start");
 const buttonStop = document.getElementById("stop");
 let interval;
+let intervalLogs;
 
 function getStatus() {
-  console.log("interval");
   fetch("/api/json",
-    { method: "GET", mode: "cors" })
+    { method: "GET" })
     .then((response) => {
       const _status = response.status;
       if (_status !== 200) {
@@ -35,6 +36,24 @@ function getStatus() {
     });
 }
 
+function getLogs() {
+  fetch("/api/logs",
+    { method: "GET" })
+    .then((response) => {
+      const _status = response.status;
+      if (_status !== 200) {
+        throw new Error();
+      }
+      return response.text();
+    })
+    .then((data) => {
+      textLogs.innerText = data;
+    })
+    .catch(() => {
+      textLogs.innerText = "error";
+    });
+}
+
 function onStart() {
   fetch("/api/start",
     { method: "POST", mode: "cors" })
@@ -58,6 +77,8 @@ function onStop() {
 function onLoad() {
   getStatus();
   interval = setInterval(getStatus, 6000);
+  getLogs();
+  intervalLogs = setInterval(getLogs, 10000);
 }
 
 document.onload += onLoad();

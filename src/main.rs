@@ -92,6 +92,48 @@ async fn json_handler(cli: Extension<Args>, client: Extension<Client>) -> Respon
     }
 }
 
+async fn logs_handler(cli: Extension<Args>, client: Extension<Client>) -> Response {
+    let name = &cli.name;
+    let host = &cli.host;
+    let port = &cli.port;
+
+    let request = client.get(format!(
+        "http://{host}:{port}/containers/{name}/logs?stdout=true&tail=20",
+        host = host,
+        port = port,
+        name = name
+    ));
+
+    let response = request.send().await;
+    match response {
+        Ok(response) => {
+            if response.status().is_client_error() {
+                eprintln!(
+                    "ERROR: {code}: no such container",
+                    code = response.status().as_u16()
+                );
+                return (StatusCode::NOT_FOUND).into_response();
+            }
+
+            let text = response.text().await;
+            match text {
+                Ok(text) => {
+                    println!("INFO: {text}", text = text);
+                    (StatusCode::OK, text).into_response()
+                }
+                Err(err) => {
+                    eprintln!("ERROR: {err}", err = err);
+                    (StatusCode::INTERNAL_SERVER_ERROR).into_response()
+                }
+            }
+        }
+        Err(err) => {
+            eprintln!("ERROR: {err}", err = err);
+            (StatusCode::INTERNAL_SERVER_ERROR).into_response()
+        }
+    }
+}
+
 async fn start_handler(cli: Extension<Args>, client: Extension<Client>) -> Response {
     let name = &cli.name;
     let host = &cli.host;
@@ -211,6 +253,7 @@ async fn main() {
         .route("/", get(index_handler))
         .route("/script.js", get(script_handler))
         .route("/api/json", get(json_handler))
+        .route("/api/logs", get(logs_handler))
         .route("/api/start", post(start_handler))
         .route("/api/stop", post(stop_handler))
         .layer(cors)

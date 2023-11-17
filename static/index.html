@@ -8,12 +8,18 @@
     div#root {
       margin: 1rem;
     }
+
+    #logs {
+      border: 1px black solid;
+      padding: 1rem;
+    }
   </style>
 </head>
 
 <body>
   <div id="root">
     <p>Status: <span id="status">%</span></p>
+    <p id="logs"></p>
     <button id="start" onclick="onStart()" disabled>Start</button>
     <button id="stop" onclick="onStop()" disabled>Stop</button>
   </div>
