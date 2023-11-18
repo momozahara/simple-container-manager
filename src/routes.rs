@@ -1,14 +1,19 @@
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use axum::{
+    body::StreamBody,
     http::StatusCode,
     response::{IntoResponse, Response},
     Extension, Json,
 };
+use futures_util::{Stream, StreamExt};
 use reqwest::{header, Client};
 use serde::{Deserialize, Serialize};
 
-use crate::{utils::serve_file, Args};
+use crate::{
+    utils::{redact, serve_file},
+    Args,
+};
 
 #[allow(non_snake_case)]
 #[derive(Serialize, Deserialize)]
@@ -21,6 +26,36 @@ struct Container {
 #[derive(Serialize, Deserialize)]
 struct State {
     Status: String,
+}
+
+pub async fn stream_handler(
+    cli: Extension<Arc<Args>>,
+    client: Extension<Arc<Client>>,
+) -> StreamBody<impl Stream<Item = reqwest::Result<bytes::Bytes>>> {
+    let name = &cli.name;
+    let host = &cli.host;
+    let port = &cli.port;
+
+    let request = client.post(format!(
+        "http://{host}:{port}/containers/{name}/attach?stdout=true&logs=true&stream=true",
+        host = host,
+        port = port,
+        name = name
+    ));
+
+    let response = request.send().await.unwrap();
+    let stream = response.bytes_stream();
+
+    let modified_stream = stream.map(|result| match result {
+        Ok(bytes) => {
+            let s = String::from_utf8_lossy(&bytes);
+            let redacted_s = redact(s.to_string());
+            Ok(redacted_s.into_bytes().into())
+        }
+        Err(e) => Err(e),
+    });
+
+    StreamBody::new(modified_stream)
 }
 
 pub async fn json_handler(cli: Extension<Arc<Args>>, client: Extension<Arc<Client>>) -> Response {
@@ -68,11 +103,6 @@ pub async fn json_handler(cli: Extension<Arc<Args>>, client: Extension<Arc<Clien
             (StatusCode::INTERNAL_SERVER_ERROR).into_response()
         }
     }
-}
-
-pub async fn logs_handler(logs: Extension<Arc<Mutex<String>>>) -> Response {
-    let _logs = logs.lock().unwrap();
-    (StatusCode::OK, _logs.clone()).into_response()
 }
 
 pub async fn start_handler(cli: Extension<Arc<Args>>, client: Extension<Arc<Client>>) -> Response {

@@ -1,8 +1,7 @@
 mod routes;
-mod server;
 mod utils;
 
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use axum::{
     routing::{get, post},
@@ -44,23 +43,15 @@ async fn main() {
         .allow_methods([Method::GET, Method::POST])
         .allow_origin(Any);
 
-    let logs = Arc::new(Mutex::new(String::new()));
-
-    let s_cli = cli.clone();
-    let s_client = client.clone();
-    let s_logs = logs.clone();
-    tokio::spawn(async move { server::server(s_cli, s_client, s_logs).await });
-
     let app = Router::new()
         .route("/", get(routes::index_handler))
         .route("/script.js", get(routes::script_handler))
         .route("/api/json", get(routes::json_handler))
-        .route("/api/logs", get(routes::logs_handler))
         .route("/api/start", post(routes::start_handler))
         .route("/api/stop", post(routes::stop_handler))
+        .route("/api/stream", post(routes::stream_handler))
         .layer(cors)
         .layer(Extension(cli))
-        .layer(Extension(logs))
         .layer(Extension(client));
 
     axum::Server::bind(&"0.0.0.0:3000".parse().unwrap())

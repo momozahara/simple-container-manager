@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use axum::Extension;
+use regex::Regex;
 use tokio::{fs::File, io::AsyncReadExt};
 
 use crate::Args;
@@ -16,4 +17,9 @@ pub async fn serve_file(file_path: &str, cli: Extension<Arc<Args>>) -> String {
     }
 
     String::new()
+}
+
+pub fn redact(text: String) -> String {
+    let l_regex = Regex::new(r"\b(?:\d{1,3}\.){3}\d{1,3}:\d{1,5}\b").unwrap();
+    String::from(l_regex.replace_all(&text, "[REDACTED]"))
 }

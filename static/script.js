@@ -3,8 +3,10 @@ const logsContainer = document.getElementById("logs-container");
 const textLogs = document.getElementById("logs");
 const buttonStart = document.getElementById("start");
 const buttonStop = document.getElementById("stop");
+const checkStick = document.getElementById("fn-1");
 let interval;
 let intervalLogs;
+let stickToBottom = true;
 
 function getStatus() {
   fetch("/api/json",
@@ -38,19 +40,29 @@ function getStatus() {
 }
 
 async function getLogs() {
-  return fetch("/api/logs",
-    { method: "GET" })
+  return fetch("/api/stream",
+    { method: "POST" })
     .then((response) => {
-      const _status = response.status;
-      if (_status !== 200) {
-        throw new Error();
+      const reader = response.body.getReader();
+      function read() {
+        return reader.read().then(({ done, value }) => {
+          if (done) {
+            return;
+          }
+          const decoder = new TextDecoder();
+          textLogs.innerText += decoder.decode(value);
+
+          if (stickToBottom) {
+            logsContainer.scrollTo(0, logsContainer.scrollHeight);
+          }
+
+          return read();
+        });
       }
-      return response.text();
+      return read();
     })
-    .then((data) => {
-      textLogs.innerText = data;
-    })
-    .catch(() => {
+    .catch((e) => {
+      console.error(e);
       textLogs.innerText = "error";
     });
 }
@@ -75,12 +87,20 @@ function onStop() {
     });
 }
 
+function onStickToggle() {
+  console.log("Change");
+  if (checkStick.checked) {
+    stickToBottom = true;
+  } else {
+    stickToBottom = false;
+  }
+}
+
 async function onLoad() {
   getStatus();
   interval = setInterval(getStatus, 6000);
   await getLogs();
   intervalLogs = setInterval(getLogs, 10000);
-  logsContainer.scrollTo(0, logsContainer.scrollHeight);
 }
 
 document.onload += onLoad();
