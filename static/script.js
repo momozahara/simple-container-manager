@@ -41,7 +41,11 @@ function getStatus() {
 
 async function getLogs() {
   return fetch("/api/stream",
-    { method: "POST" })
+    {
+      method: "POST",
+      keepalive: true,
+      cache: "no-cache",
+    })
     .then((response) => {
       const reader = response.body.getReader();
       function read() {
