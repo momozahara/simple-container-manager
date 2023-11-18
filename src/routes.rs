@@ -1,9 +1,13 @@
 use std::sync::Arc;
 
+use async_stream::try_stream;
+
 use axum::{
-    body::StreamBody,
-    http::StatusCode,
-    response::{IntoResponse, Response},
+    http::{Result, StatusCode},
+    response::{
+        sse::{Event, KeepAlive},
+        IntoResponse, Response, Sse,
+    },
     Extension, Json,
 };
 use futures_util::{Stream, StreamExt};
@@ -31,7 +35,7 @@ struct State {
 pub async fn stream_handler(
     cli: Extension<Arc<Args>>,
     client: Extension<Arc<Client>>,
-) -> StreamBody<impl Stream<Item = reqwest::Result<bytes::Bytes>>> {
+) -> Sse<impl Stream<Item = Result<Event>>> {
     let name = &cli.name;
     let host = &cli.host;
     let port = &cli.port;
@@ -44,18 +48,24 @@ pub async fn stream_handler(
     ));
 
     let response = request.send().await.unwrap();
-    let stream = response.bytes_stream();
+    let mut stream = response.bytes_stream();
 
-    let modified_stream = stream.map(|result| match result {
-        Ok(bytes) => {
-            let s = String::from_utf8_lossy(&bytes);
-            let redacted_s = redact(s.to_string());
-            Ok(redacted_s.into_bytes().into())
+    Sse::new(try_stream! {
+        loop {
+            match stream.next().await.unwrap() {
+                Ok(bytes) => {
+                    let s = String::from_utf8_lossy(&bytes);
+                    let redacted_s = redact(s.to_string());
+                    let result = redacted_s.replace("\n", "<newline>").replace("\r", "");
+                    yield Event::default().data(result)
+                }
+                Err(e) => {
+                    eprintln!("ERROR: {err}", err = e);
+                }
+            }
         }
-        Err(e) => Err(e),
-    });
-
-    StreamBody::new(modified_stream)
+    })
+    .keep_alive(KeepAlive::default())
 }
 
 pub async fn json_handler(cli: Extension<Arc<Args>>, client: Extension<Arc<Client>>) -> Response {

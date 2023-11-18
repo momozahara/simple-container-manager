@@ -54,7 +54,11 @@ async function getLogs() {
             return;
           }
           const decoder = new TextDecoder();
-          textLogs.innerText += decoder.decode(value);
+          if (decoder.decode(value).length === 3) {
+            return read();
+          }
+
+          logsContainer.innerText += decoder.decode(value).replace("data:", '').replace(/\n/g, '').replace(/\t/g, 't').replace(/<newline>/g, '\n');
 
           if (stickToBottom) {
             logsContainer.scrollTo(0, logsContainer.scrollHeight);
