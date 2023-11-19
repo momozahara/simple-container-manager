@@ -58,7 +58,7 @@ async function getLogs() {
             return read();
           }
 
-          logsContainer.innerText += decoder.decode(value).replace("data:", '').replace(/\n/g, '').replace(/\t/g, 't').replace(/<newline>/g, '\n');
+          logsContainer.innerText += decoder.decode(value).replace(/data:/g, '').replace(/\n/g, '').replace(/\t/g, '').replace(/<newline>/g, '\n');
 
           if (stickToBottom) {
             logsContainer.scrollTo(0, logsContainer.scrollHeight);
