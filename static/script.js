@@ -39,8 +39,8 @@ function getStatus() {
     });
 }
 
-async function getLogs() {
-  return fetch("/api/stream",
+function getLogs() {
+  fetch("/api/stream",
     {
       method: "POST",
       keepalive: true,
@@ -104,11 +104,10 @@ function onStickToggle() {
   }
 }
 
-async function onLoad() {
+function onLoad() {
   getStatus();
   interval = setInterval(getStatus, 6000);
-  await getLogs();
-  intervalLogs = setInterval(getLogs, 10000);
+  getLogs();
 }
 
 document.onload += onLoad();
