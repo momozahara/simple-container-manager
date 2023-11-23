@@ -54,8 +54,9 @@ async fn main() {
         .layer(Extension(cli))
         .layer(Extension(client));
 
-    axum::Server::bind(&"0.0.0.0:3000".parse().unwrap())
-        .serve(app.into_make_service())
-        .await
-        .unwrap();
+    let listener = axum::Server::bind(&"0.0.0.0:3000".parse().unwrap());
+
+    println!("INFO: server running on port 3000");
+
+    listener.serve(app.into_make_service()).await.unwrap();
 }
