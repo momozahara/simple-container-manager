@@ -93,9 +93,16 @@ async fn main() {
         .layer(Extension(cli))
         .layer(Extension(client));
 
-    let listener = axum::Server::bind(&"0.0.0.0:3000".parse().unwrap());
+    let addr = &"0.0.0.0:3000".parse().unwrap();
+    let bind_response = axum::Server::try_bind(addr);
 
-    tracing::info!("server running on port 3000");
-
-    listener.serve(app.into_make_service()).await.unwrap();
+    match bind_response {
+        Ok(server) => {
+            tracing::info!("listening on {address}", address = addr);
+            server.serve(app.into_make_service()).await.unwrap();
+        }
+        Err(err) => {
+            tracing::error!("{error}", error = err);
+        }
+    }
 }
