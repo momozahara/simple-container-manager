@@ -9,7 +9,9 @@ use axum::{
 };
 use clap::Parser;
 use reqwest::{Client, Method};
+use time::{macros::format_description, UtcOffset};
 use tower_http::cors::{Any, CorsLayer};
+use tracing_subscriber::fmt::time::OffsetTime;
 
 #[derive(Parser, Clone)]
 #[command(disable_help_flag = true)]
@@ -35,9 +37,46 @@ pub struct Args {
 
 #[tokio::main]
 async fn main() {
+    let offset = UtcOffset::from_hms(7, 0, 0).expect("could not get offset Utc+7");
+    let timer = OffsetTime::new(
+        offset,
+        format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]"),
+    );
+    tracing_subscriber::fmt()
+        .with_target(false)
+        .with_timer(timer)
+        .init();
+
     let cli = Arc::new(Args::parse());
 
     let client = Arc::new(Client::new());
+
+    tracing::info!(
+        "testing remote connection {host}:{port}",
+        host = &cli.host,
+        port = &cli.port
+    );
+    let request = client.get(format!(
+        "http://{host}:{port}/_ping",
+        host = &cli.host,
+        port = &cli.port
+    ));
+    match request
+        .timeout(std::time::Duration::from_secs(3))
+        .send()
+        .await
+    {
+        Ok(response) => {
+            if !response.status().is_success() {
+                tracing::error!("could not connect to server");
+                std::process::exit(1);
+            }
+        }
+        Err(_) => {
+            tracing::error!("could not connect to server");
+            std::process::exit(1);
+        }
+    }
 
     let cors = CorsLayer::new()
         .allow_methods([Method::GET, Method::POST])
@@ -56,7 +95,7 @@ async fn main() {
 
     let listener = axum::Server::bind(&"0.0.0.0:3000".parse().unwrap());
 
-    println!("INFO: server running on port 3000");
+    tracing::info!("server running on port 3000");
 
     listener.serve(app.into_make_service()).await.unwrap();
 }

@@ -50,6 +50,8 @@ pub async fn stream_handler(
     let response = request.send().await.unwrap();
     let mut stream = response.bytes_stream();
 
+    tracing::info!("/api/stream");
+
     Sse::new(try_stream! {
         loop {
             match stream.next().await.unwrap() {
@@ -60,7 +62,8 @@ pub async fn stream_handler(
                     yield Event::default().data(result)
                 }
                 Err(e) => {
-                    eprintln!("ERROR: {err}", err = e);
+                    tracing::error!("ERROR: {err}", err = e);
+                    break;
                 }
             }
         }
@@ -84,7 +87,7 @@ pub async fn json_handler(cli: Extension<Arc<Args>>, client: Extension<Arc<Clien
     match response {
         Ok(response) => {
             if response.status().is_client_error() {
-                eprintln!(
+                tracing::error!(
                     "ERROR: {code}: no such container",
                     code = response.status().as_u16()
                 );
@@ -95,21 +98,17 @@ pub async fn json_handler(cli: Extension<Arc<Args>>, client: Extension<Arc<Clien
             match text {
                 Ok(text) => {
                     let container: Container = serde_json::from_str(&text).unwrap();
-                    println!(
-                        "INFO: Container {name}: {status}",
-                        name = container.Name,
-                        status = container.State.Status
-                    );
+                    tracing::info!("/api/json");
                     (StatusCode::OK, Json(container)).into_response()
                 }
                 Err(err) => {
-                    eprintln!("ERROR: {err}", err = err);
+                    tracing::error!("ERROR: {err}", err = err);
                     (StatusCode::INTERNAL_SERVER_ERROR).into_response()
                 }
             }
         }
         Err(err) => {
-            eprintln!("ERROR: {err}", err = err);
+            tracing::error!("ERROR: {err}", err = err);
             (StatusCode::INTERNAL_SERVER_ERROR).into_response()
         }
     }
@@ -131,22 +130,23 @@ pub async fn start_handler(cli: Extension<Arc<Args>>, client: Extension<Arc<Clie
     match response {
         Ok(response) => {
             if response.status().is_client_error() {
-                eprintln!(
+                tracing::error!(
                     "ERROR: {code}: no such container",
                     code = response.status().as_u16()
                 );
                 return (StatusCode::NOT_FOUND).into_response();
             } else if response.status().is_redirection() {
-                eprintln!(
+                tracing::error!(
                     "ERROR: {code}: container already started",
                     code = response.status().as_u16()
                 );
                 return (StatusCode::NOT_MODIFIED).into_response();
             }
+            tracing::info!("/api/start");
             (StatusCode::NO_CONTENT).into_response()
         }
         Err(err) => {
-            eprintln!("ERROR: {err}", err = err);
+            tracing::error!("ERROR: {err}", err = err);
             (StatusCode::INTERNAL_SERVER_ERROR).into_response()
         }
     }
@@ -168,22 +168,23 @@ pub async fn stop_handler(cli: Extension<Arc<Args>>, client: Extension<Arc<Clien
     match response {
         Ok(response) => {
             if response.status().is_client_error() {
-                eprintln!(
+                tracing::error!(
                     "ERROR: {code}: no such container",
                     code = response.status().as_u16()
                 );
                 return (StatusCode::NOT_FOUND).into_response();
             } else if response.status().is_redirection() {
-                eprintln!(
+                tracing::error!(
                     "ERROR: {code}: container already stopped",
                     code = response.status().as_u16()
                 );
                 return (StatusCode::NOT_MODIFIED).into_response();
             }
+            tracing::info!("/api/stop");
             (StatusCode::NO_CONTENT).into_response()
         }
         Err(err) => {
-            eprintln!("ERROR: {err}", err = err);
+            tracing::error!("ERROR: {err}", err = err);
             (StatusCode::INTERNAL_SERVER_ERROR).into_response()
         }
     }
@@ -195,6 +196,8 @@ pub async fn index_handler(cli: Extension<Arc<Args>>) -> Response {
         return (StatusCode::INTERNAL_SERVER_ERROR).into_response();
     }
 
+    tracing::info!("/");
+
     (StatusCode::OK, [(header::CONTENT_TYPE, "text/html")], file).into_response()
 }
 
@@ -203,6 +206,8 @@ pub async fn script_handler(cli: Extension<Arc<Args>>) -> Response {
     if file.is_empty() {
         return (StatusCode::INTERNAL_SERVER_ERROR).into_response();
     }
+
+    tracing::info!("/script.js");
 
     (
         StatusCode::OK,
